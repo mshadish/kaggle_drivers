@@ -3,6 +3,7 @@
 # This script defines several functions used
 # to extract features from the driver folders
 ########################################
+options(warn = -1)
 
 calcAngle = function(x,y) {
   # function to compute the true angle
@@ -52,8 +53,14 @@ computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
 createIndividualDriverDf = function(folder_name) {
   # this function creates a data frame representing all of the files
   # within a given driver folder
+  # note that, instead of continually appending to our vectors
+  # (which would be slow)
+  # we will first initialize our lists of length 200
+  # and simply iterate a positioning counter to determine
+  # where to insert the next element within the 200
 
   # initialize lists to store results
+  # we know that every folder contains 200 driver files
   left_turns_l = rep(NA, 200)
   right_turns_l = rep(NA, 200)
   left_turn_frac_l = rep(NA, 200)
@@ -203,8 +210,34 @@ createIndividualDriverDf = function(folder_name) {
     med_braking_l[counter] = med_braking
 
     # increment the counter
-    print(paste('Completed', toString(counter), sep=' '))
     counter = counter + 1
+    #print(paste('Completed', toString(counter), sep=' '))
   }
+  # now that all of the vectors have been populated,
+  # create the returning data frame
+  return_df = data.frame(left_turns_l, right_turns_l, left_turn_frac_l,
+                         avg_left_turn_l, med_left_turn_l, max_left_turn_l,
+                         sd_left_turn_l, right_turn_frac_l, avg_right_turn_l,
+                         med_right_turn_l, max_right_turn_l, sd_right_turn_l,
+                         final_dir_l, avg_vel_l, med_vel_l, avg_vel_no_0_l,
+                         med_vel_no_0_l, max_vel_l, time_cruising_l,
+                         distance_l, max_accel_l, max_brake_l, time_accel_l,
+                         time_braking_l, avg_accel_l, med_accel_l, avg_braking_l,
+                         med_braking_l)
+  # report completion
+  print(paste('Completed folder', folder_name, sep = ' '))
+  # write to a csv
+  write.table(return_df, file = paste(folder_name, '_summary.csv', sep = ''),
+              sep = ',', quote = FALSE)
+  # end of function
   return
 }
+
+
+############################
+# MAIN FUNCTION
+############################
+# grab the names of folders
+folders = dir()
+# and create the individual dataframe csv's
+sapply(folders, FUN = createIndividualDriverDf)
