@@ -50,7 +50,7 @@ computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
 }
 
 
-createIndividualDriverDf = function(folder_name) {
+createIndividualDriverDf = function(folder_dir) {
   # this function creates a data frame representing all of the files
   # within a given driver folder
   # note that, instead of continually appending to our vectors
@@ -58,9 +58,14 @@ createIndividualDriverDf = function(folder_name) {
   # we will first initialize our lists of length 200
   # and simply iterate a positioning counter to determine
   # where to insert the next element within the 200
+  
+  # first, pull out the folder name from the given directory
+  directory_split = strsplit(folder_dir, split = '/')[[1]]
+  folder_name = directory_split[length(directory_split)]
 
   # initialize lists to store results
   # we know that every folder contains 200 driver files
+  id_list = rep(NA, 200)
   left_turns_l = rep(NA, 200)
   right_turns_l = rep(NA, 200)
   left_turn_frac_l = rep(NA, 200)
@@ -94,14 +99,19 @@ createIndividualDriverDf = function(folder_name) {
   med_braking_l = rep(NA, 200)
 
   # set up files to loop through
-  files = list.files(folder_name, pattern = '*.csv')
+  files = list.files(folder_dir, pattern = '*.csv')
 
   # now loop through all of the files
   counter = 1
   for (file in files) {
+    
+    # grab the ID of this file (stripping out the '.csv')
+    file_id = strsplit(file, split = '.', fixed = TRUE)[[1]][1]
+    folder_file_id = paste(folder_name, file_id, sep = '_')
+    id_list[counter] = folder_file_id
 
     # read in the data
-    data = read.csv(paste(folder_name, file, sep = '/'))
+    data = read.csv(paste(folder_dir, file, sep = '/'))
     # difference it to obtain velocities
     diffed_x = diff(data$x)
     diffed_y = diff(data$y)
@@ -177,8 +187,8 @@ createIndividualDriverDf = function(folder_name) {
 
     ########################################################
     # NOW ADD THE FEATURES TO THE LISTS
-    left_turns_l[counter] = left_turns
-    right_turns_l[counter] = right_turns
+    left_turns_l[counter] = length(left_turns)
+    right_turns_l[counter] = length(right_turns)
     left_turn_frac_l[counter] = left_turn_frac
     avg_left_turn_l[counter] = avg_left_turn
     med_left_turn_l[counter] = med_left_turn
@@ -215,7 +225,7 @@ createIndividualDriverDf = function(folder_name) {
   }
   # now that all of the vectors have been populated,
   # create the returning data frame
-  return_df = data.frame(left_turns_l, right_turns_l, left_turn_frac_l,
+  return_df = data.frame(id_list, left_turns_l, right_turns_l, left_turn_frac_l,
                          avg_left_turn_l, med_left_turn_l, max_left_turn_l,
                          sd_left_turn_l, right_turn_frac_l, avg_right_turn_l,
                          med_right_turn_l, max_right_turn_l, sd_right_turn_l,
@@ -225,12 +235,11 @@ createIndividualDriverDf = function(folder_name) {
                          time_braking_l, avg_accel_l, med_accel_l, avg_braking_l,
                          med_braking_l)
   # report completion
-  print(paste('Completed folder', folder_name, sep = ' '))
+  print(paste('Completed folder', folder_dir, sep = ' '))
   # write to a csv
-  write.table(return_df, file = paste(folder_name, '_summary.csv', sep = ''),
-              sep = ',', quote = FALSE)
+  write.table(return_df, file = paste(folder_dir, '_summary.csv', sep = ''),
+              sep = ',', quote = FALSE, row.names = FALSE)
   # end of function
-  return
 }
 
 
@@ -238,6 +247,6 @@ createIndividualDriverDf = function(folder_name) {
 # MAIN FUNCTION
 ############################
 # grab the names of folders
-folders = dir()
+folders = sapply(dir('drivers/drivers'), FUN = function(x) {paste('drivers/drivers/', x, sep = '')})
 # and create the individual dataframe csv's
 sapply(folders, FUN = createIndividualDriverDf)
