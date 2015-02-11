@@ -42,8 +42,9 @@ computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
   turn = cur_angle - prev_angle
   while (abs(turn) > abs(turn - sign(turn) * 2 * pi)) {
     turn = turn - sign(turn) * 2 * pi
-    # write an if for the rare case we have an exactly 90 degree turn
-    if (abs(turn) == pi/2) {
+    # write an if for the rare case we have an exactly 180 degree turn
+    # which probably is incorrect, but we want to avoid the potential for an infinite loop
+    if (abs(turn) == pi) {
       break
     }
   }
