@@ -37,16 +37,30 @@ computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
     prev_angle = 0.0
   }
   
-  comparison = cur_angle - (sign(cur_angle) * 2 * pi)
-  # compare absolute values
-  if (abs(prev_angle - cur_angle) > abs(prev_angle - comparison)) {
-    # in this case, the converted angle provides the minimum
-    comparison - prev_angle
+  # run a while loop to minimize the turn angle
+  # to prevent the creation of a 340 degree right turn (which is a 20 deg left turn)
+  turn = cur_angle - prev_angle
+  while (abs(turn) > abs(turn - sign(turn) * 2 * pi)) {
+    turn = turn - sign(turn) * 2 * pi
+    # write an if for the rare case we have an exactly 90 degree turn
+    if (abs(turn) == pi/2) {
+      break
+    }
   }
-  else {
-    # otherwise, keep the angle
-    cur_angle - prev_angle
-  }
+  # return
+  turn
+  
+  
+#   comparison = cur_angle - (sign(cur_angle) * 2 * pi)
+#   # compare absolute values
+#   if (abs(prev_angle - cur_angle) > abs(prev_angle - comparison)) {
+#     # in this case, the converted angle provides the minimum
+#     comparison - prev_angle
+#   }
+#   else {
+#     # otherwise, keep the angle
+#     cur_angle - prev_angle
+#   }
 }
 
 
@@ -66,37 +80,37 @@ createIndividualDriverDf = function(folder_dir) {
   # initialize lists to store results
   # we know that every folder contains 200 driver files
   id_list = rep(NA, 200)
-  left_turns_l = rep(NA, 200)
-  right_turns_l = rep(NA, 200)
-  left_turn_frac_l = rep(NA, 200)
-  avg_left_turn_l = rep(NA, 200)
-  med_left_turn_l = rep(NA, 200)
-  max_left_turn_l = rep(NA, 200)
-  sd_left_turn_l = rep(NA, 200)
-  right_turn_frac_l = rep(NA, 200)
-  avg_right_turn_l = rep(NA, 200)
-  med_right_turn_l = rep(NA, 200)
-  max_right_turn_l = rep(NA, 200)
-  sd_right_turn_l = rep(NA, 200)
+  left_turns_taken = rep(NA, 200)
+  right_turns_taken = rep(NA, 200)
+  left_turn_fraction = rep(NA, 200)
+  avg_left_turn_angle = rep(NA, 200)
+  med_left_turn_angle = rep(NA, 200)
+  max_left_turn_angle = rep(NA, 200)
+  sd_left_turn_angle = rep(NA, 200)
+  right_turn_fraction = rep(NA, 200)
+  avg_right_turn_angle = rep(NA, 200)
+  med_right_turn_angle = rep(NA, 200)
+  max_right_turn_angle = rep(NA, 200)
+  sd_right_turn_angle = rep(NA, 200)
 
-  final_dir_l = rep(NA, 200)
+  final_direction = rep(NA, 200)
 
-  avg_vel_l = rep(NA, 200)
-  med_vel_l = rep(NA, 200)
-  avg_vel_no_0_l = rep(NA, 200)
-  med_vel_no_0_l = rep(NA, 200)
-  max_vel_l = rep(NA, 200)
-  time_cruising_l = rep(NA, 200)
-  distance_l = rep(NA, 200)
+  avg_velocity = rep(NA, 200)
+  med_velocity = rep(NA, 200)
+  avg_velocity_no_0 = rep(NA, 200)
+  med_velocity_no_0 = rep(NA, 200)
+  max_velocity = rep(NA, 200)
+  time_spent_cruising = rep(NA, 200)
+  distance_traveled = rep(NA, 200)
 
-  max_accel_l = rep(NA, 200)
-  max_brake_l = rep(NA, 200)
-  time_accel_l = rep(NA, 200)
-  time_braking_l = rep(NA, 200)
-  avg_accel_l = rep(NA, 200)
-  med_accel_l = rep(NA, 200)
-  avg_braking_l = rep(NA, 200)
-  med_braking_l = rep(NA, 200)
+  max_acceleration = rep(NA, 200)
+  max_deceleration = rep(NA, 200)
+  time_spent_accelerating = rep(NA, 200)
+  time_spent_braking = rep(NA, 200)
+  avg_acceleration = rep(NA, 200)
+  med_acceleration = rep(NA, 200)
+  avg_deceleration = rep(NA, 200)
+  med_deceleration = rep(NA, 200)
 
   # set up files to loop through
   files = list.files(folder_dir, pattern = '*.csv')
@@ -187,37 +201,37 @@ createIndividualDriverDf = function(folder_dir) {
 
     ########################################################
     # NOW ADD THE FEATURES TO THE LISTS
-    left_turns_l[counter] = length(left_turns)
-    right_turns_l[counter] = length(right_turns)
-    left_turn_frac_l[counter] = left_turn_frac
-    avg_left_turn_l[counter] = avg_left_turn
-    med_left_turn_l[counter] = med_left_turn
-    max_left_turn_l[counter] = max_left_turn
-    sd_left_turn_l[counter] = sd_left_turn
-    right_turn_frac_l[counter] = right_turn_frac
-    avg_right_turn_l[counter] = avg_right_turn
-    med_right_turn_l[counter] = med_right_turn
-    max_right_turn_l[counter] = max_right_turn
-    sd_right_turn_l[counter] = sd_right_turn
+    left_turns_taken[counter] = length(left_turns)
+    right_turns_taken[counter] = length(right_turns)
+    left_turn_fraction[counter] = left_turn_frac
+    avg_left_turn_angle[counter] = avg_left_turn
+    med_left_turn_angle[counter] = med_left_turn
+    max_left_turn_angle[counter] = max_left_turn
+    sd_left_turn_angle[counter] = sd_left_turn
+    right_turn_fraction[counter] = right_turn_frac
+    avg_right_turn_angle[counter] = avg_right_turn
+    med_right_turn_angle[counter] = med_right_turn
+    max_right_turn_angle[counter] = max_right_turn
+    sd_right_turn_angle[counter] = sd_right_turn
 
-    final_dir_l[counter] = final_dir
+    final_direction[counter] = final_dir
 
-    avg_vel_l[counter] = avg_vel
-    med_vel_l[counter] = med_vel
-    avg_vel_no_0_l[counter] = avg_vel_no_0
-    med_vel_no_0_l[counter] = med_vel_no_0
-    max_vel_l[counter] = max_vel
-    time_cruising_l[counter] = time_cruising
-    distance_l[counter] = distance
+    avg_velocity[counter] = avg_vel
+    med_velocity[counter] = med_vel
+    avg_velocity_no_0[counter] = avg_vel_no_0
+    med_velocity_no_0[counter] = med_vel_no_0
+    max_velocity[counter] = max_vel
+    time_spent_cruising[counter] = time_cruising
+    distance_traveled[counter] = distance
 
-    max_accel_l[counter] = max_accel
-    max_brake_l[counter] = max_brake
-    time_accel_l[counter] = time_accel
-    time_braking_l[counter] = time_braking
-    avg_accel_l[counter] = avg_accel
-    med_accel_l[counter] = med_accel
-    avg_braking_l[counter] = avg_braking
-    med_braking_l[counter] = med_braking
+    max_acceleration[counter] = max_accel
+    max_deceleration[counter] = max_brake
+    time_spent_accelerating[counter] = time_accel
+    time_spent_braking[counter] = time_braking
+    avg_acceleration[counter] = avg_accel
+    med_acceleration[counter] = med_accel
+    avg_deceleration[counter] = avg_braking
+    med_deceleration[counter] = med_braking
 
     # increment the counter
     counter = counter + 1
@@ -225,15 +239,15 @@ createIndividualDriverDf = function(folder_dir) {
   }
   # now that all of the vectors have been populated,
   # create the returning data frame
-  return_df = data.frame(id_list, left_turns_l, right_turns_l, left_turn_frac_l,
-                         avg_left_turn_l, med_left_turn_l, max_left_turn_l,
-                         sd_left_turn_l, right_turn_frac_l, avg_right_turn_l,
-                         med_right_turn_l, max_right_turn_l, sd_right_turn_l,
-                         final_dir_l, avg_vel_l, med_vel_l, avg_vel_no_0_l,
-                         med_vel_no_0_l, max_vel_l, time_cruising_l,
-                         distance_l, max_accel_l, max_brake_l, time_accel_l,
-                         time_braking_l, avg_accel_l, med_accel_l, avg_braking_l,
-                         med_braking_l)
+  return_df = data.frame(id_list, left_turns_taken, right_turns_taken, left_turn_fraction,
+                         avg_left_turn_angle, med_left_turn_angle, max_left_turn_angle,
+                         sd_left_turn_angle, right_turn_fraction, avg_right_turn_angle,
+                         med_right_turn_angle, max_right_turn_angle, sd_right_turn_angle,
+                         final_direction, avg_velocity, med_velocity, avg_velocity_no_0,
+                         med_velocity_no_0, max_velocity, time_spent_cruising,
+                         distance_traveled, max_acceleration, max_deceleration, time_spent_accelerating,
+                         time_spent_braking, avg_acceleration, med_acceleration, avg_deceleration,
+                         med_deceleration)
   # report completion
   print(paste('Completed folder', folder_dir, sep = ' '))
   # write to a csv
@@ -247,6 +261,6 @@ createIndividualDriverDf = function(folder_dir) {
 # MAIN FUNCTION
 ############################
 # grab the names of folders
-folders = sapply(dir('drivers/drivers'), FUN = function(x) {paste('drivers/drivers/', x, sep = '')})
+folders = sapply(dir('drivers'), FUN = function(x) {paste('drivers/', x, sep = '')})
 # and create the individual dataframe csv's
 sapply(folders, FUN = createIndividualDriverDf)
