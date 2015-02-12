@@ -3,6 +3,11 @@
 # This script defines several functions used
 # to extract features from the driver folders
 ########################################
+########################################
+# DEFINE THE PATH TO THE FOLDERS HERE
+path = 'drivers'
+########################################
+
 options(warn = -1)
 
 calcAngle = function(x,y) {
@@ -262,6 +267,6 @@ createIndividualDriverDf = function(folder_dir) {
 # MAIN FUNCTION
 ############################
 # grab the names of folders
-folders = sapply(dir('drivers'), FUN = function(x) {paste('drivers/', x, sep = '')})
+folders = sapply(dir(path), FUN = function(x) {paste(path, x, sep = '/')})
 # and create the individual dataframe csv's
 sapply(folders, FUN = createIndividualDriverDf)
