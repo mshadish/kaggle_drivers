@@ -55,18 +55,6 @@ computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
   }
   # return
   turn
-  
-  
-#   comparison = cur_angle - (sign(cur_angle) * 2 * pi)
-#   # compare absolute values
-#   if (abs(prev_angle - cur_angle) > abs(prev_angle - comparison)) {
-#     # in this case, the converted angle provides the minimum
-#     comparison - prev_angle
-#   }
-#   else {
-#     # otherwise, keep the angle
-#     cur_angle - prev_angle
-#   }
 }
 
 
@@ -153,12 +141,12 @@ createIndividualDriverDf = function(folder_dir) {
     left_turn_frac = length(left_turns) / length(turn)
     avg_left_turn = mean(left_turns)
     med_left_turn = median(left_turns)
-    max_left_turn = max(left_turns)
+    max_left_turn = pmax(left_turns)
     sd_left_turn = sd(left_turns)
     right_turn_frac = length(right_turns) / length(turn)
     avg_right_turn = mean(right_turns)
     med_right_turn = median(right_turns)
-    max_right_turn = min(right_turns)
+    max_right_turn = pmin(right_turns)
     sd_right_turn = sd(right_turns)
 
     # while we're at it, let's compute the trajectory of the vehicle
@@ -183,7 +171,7 @@ createIndividualDriverDf = function(folder_dir) {
     med_vel = median(vel)
     avg_vel_no_0 = mean(vel_no_0)
     med_vel_no_0 = median(vel_no_0)
-    max_vel = max(vel)
+    max_vel = pmax(vel)
     time_cruising = length(vel_no_0) / length(vel)
     distance = sum(vel)
 
@@ -195,8 +183,8 @@ createIndividualDriverDf = function(folder_dir) {
     accel_pos = subset(accel, accel > 0)
     accel_neg = subset(accel, accel < 0)
     # acceleration features
-    max_accel = max(accel)
-    max_brake = min(accel)
+    max_accel = pmax(accel)
+    max_brake = pmin(accel)
     time_accel = length(accel_pos) / length(accel)
     time_braking = length(accel_neg) / length(accel)
     avg_accel = mean(accel_pos)
@@ -207,37 +195,39 @@ createIndividualDriverDf = function(folder_dir) {
 
     ########################################################
     # NOW ADD THE FEATURES TO THE LISTS
+    # note: we use is.null() statements to catch null's
+    # and replace them with 0's
     left_turns_taken[counter] = length(left_turns)
     right_turns_taken[counter] = length(right_turns)
     left_turn_fraction[counter] = left_turn_frac
     avg_left_turn_angle[counter] = avg_left_turn
-    med_left_turn_angle[counter] = med_left_turn
-    max_left_turn_angle[counter] = max_left_turn
+    med_left_turn_angle[counter] = ifelse(!is.null(med_left_turn), med_left_turn, 0)
+    max_left_turn_angle[counter] = ifelse(!is.null(max_left_turn), max_left_turn, 0)
     sd_left_turn_angle[counter] = sd_left_turn
     right_turn_fraction[counter] = right_turn_frac
     avg_right_turn_angle[counter] = avg_right_turn
-    med_right_turn_angle[counter] = med_right_turn
-    max_right_turn_angle[counter] = max_right_turn
+    med_right_turn_angle[counter] = ifelse(!is.null(med_right_turn), med_right_turn, 0)
+    max_right_turn_angle[counter] = ifelse(!is.null(max_right_turn), max_right_turn, 0)
     sd_right_turn_angle[counter] = sd_right_turn
 
     final_direction[counter] = final_dir
 
     avg_velocity[counter] = avg_vel
-    med_velocity[counter] = med_vel
+    med_velocity[counter] = ifelse(!is.null(med_vel), med_vel, 0)
     avg_velocity_no_0[counter] = avg_vel_no_0
-    med_velocity_no_0[counter] = med_vel_no_0
-    max_velocity[counter] = max_vel
+    med_velocity_no_0[counter] = ifelse(!is.null(med_vel_no_0), med_vel_no_0, 0)
+    max_velocity[counter] = ifelse(!is.null(max_vel), max_vel, 0)
     time_spent_cruising[counter] = time_cruising
     distance_traveled[counter] = distance
 
-    max_acceleration[counter] = max_accel
-    max_deceleration[counter] = max_brake
+    max_acceleration[counter] = ifelse(!is.null(max_accel), max_accel, 0)
+    max_deceleration[counter] = ifelse(!is.null(max_brake), max_brake, 0)
     time_spent_accelerating[counter] = time_accel
     time_spent_braking[counter] = time_braking
     avg_acceleration[counter] = avg_accel
-    med_acceleration[counter] = med_accel
+    med_acceleration[counter] = ifelse(!is.null(med_accel), med_accel, 0)
     avg_deceleration[counter] = avg_braking
-    med_deceleration[counter] = med_braking
+    med_deceleration[counter] = ifelse(!is.null(med_braking), med_braking, 0)
 
     # increment the counter
     counter = counter + 1
