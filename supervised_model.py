@@ -1,5 +1,7 @@
 __author__ = 'mshadish'
 """
+Note that we can define the global constants below for ease of use
+
 The general idea is to build a Random Forest to classify drivers
 as to whether or not they belong in a given folder
 
@@ -14,7 +16,6 @@ The hope is that, for a given folder, some defining feature of the driver's
 fingerprint will stand out, and all of the "noise" will fall away.
 """
 # standard imports
-import os
 import copy
 import time
 import random
@@ -22,20 +23,27 @@ import numpy as np
 import pandas as pd
 # sklearn imports
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import BaggingClassifier
+from sklearn.linear_model import LogisticRegression
+# utility imports
+from utils import genListOfCSVs
+# import for parallelization
+from multiprocessing import Pool
 
 
-def genListOfCSVs(path):
-    """
-    Takes in a given path
-    
-    Returns a list of all of the CSV's in the given path
-    """
-    # grab a list of everything in this path
-    all_files = os.listdir(path)
-    # extract out the CSV's
-    csvs = [i for i in all_files if i.split('.')[-1].lower() == 'csv']
-    return csvs
-    
+# let's define our global constants here
+# for ease of modification
+# path of the summary files
+path = 'extracted'
+all_files = genListOfCSVs(path)
+# number of training/noise files to use
+train_file_count = 1
+# specify the number of features, for simplicity
+num_features = min(28, (train_file_count+1)*4)
+# model to use
+model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
+                          max_features = num_features)
+
     
     
 def extractCSV(file_path, target, id_column = 'id_list'):
@@ -85,7 +93,7 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
     
     
     
-def singleDriverWrapper(file_to_classify, training_files,
+def singleDriverTrainer(file_to_classify, training_files,
                         in_model = RandomForestClassifier()):
     """
     Takes in the file path of the driver file we want to classify (the target),
@@ -121,3 +129,47 @@ def singleDriverWrapper(file_to_classify, training_files,
         
     # with all of our data, now we can train our model
     in_model.fit(x_all, y_all)
+    
+    # now we are ready to provide class probabilities for our predictions
+    predictions = in_model.predict_proba(x_target)
+    # note that we must extract the index of the class 1 probability
+    prob_idx = np.where(in_model.classes_ == 1)[0][0]
+    class_probs = [pred[prob_idx] for pred in predictions]
+    # and return a matrix of the id's and the corresponding probabilities
+    return_mat = [[id_target[idx], class_probs[idx]] \
+                    for idx in xrange(len(class_probs))]
+    
+    return np.asarray(return_mat)
+    
+    
+    
+def parallelWrapper(target_file):
+    """
+    This function serves as a wrapper for parallelization of classification
+    of each individual target file
+    """
+    # for readability, specifying the globals used
+    global model
+    global all_files
+    global train_file_count
+    # open the training files
+    train_file_names = genTrainingSet(all_files, target_file,
+                                      train_size = train_file_count)
+    # report
+    print 'completed driver %s' % target_file
+    # return the results of running our single driver through the model
+    return singleDriverTrainer(target_file, train_file_names, model)
+    
+    
+    
+if __name__ == '__main__':
+    # initialize the pool for parallelization
+    p = Pool()
+    # and parallelize prediction for each file
+    pred_arrays = p.map(parallelWrapper, random.sample(all_files, 10))
+    # now reduce these into a single result
+    predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
+    # and write to a csv
+    df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
+    df.to_csv('solutions.csv', index = False)
+    pass
