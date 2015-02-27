@@ -114,6 +114,14 @@ def singleDriverTrainer(file_to_classify, training_files,
     # now grab the training/noise data
     x_all = copy.copy(x_target)
     y_all = copy.copy(y_target)
+    
+    #upsample target to balance classes
+    if len(training_files) > 1:
+        l = len(x_target)
+        upsample_idx = np.random.choice(range(l), l*len(training_files))
+        x_all = x_all[upsample_idx]
+        y_all = y_all[upsample_idx]
+    
     # loop through all of our training/noise files
     for filepath in training_files:
         # open the file
@@ -141,8 +149,8 @@ def singleDriverTrainer(file_to_classify, training_files,
     
     return np.asarray(return_mat)
     
-    
-    
+
+   
 def parallelWrapper(target_file):
     """
     This function serves as a wrapper for parallelization of classification
