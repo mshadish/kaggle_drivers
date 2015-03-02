@@ -161,9 +161,14 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     new_labels = np.array([1 if p > threshold else 0 for p in class_probs])
     
     #redo upsampling
-    upsample_idx = np.random.choice(range(l), l*len(training_files))
-    x_all = x_target[upsample_idx]
-    y_all_new = new_labels[upsample_idx]
+    if len(training_files) > 1:
+        l = len(x_target)
+        upsample_idx = np.random.choice(range(l), l*len(training_files))
+        x_all = x_target[upsample_idx]
+        y_all_new = new_labels[upsample_idx]
+    else:
+        x_all = copy.copy(x_target)
+
     
     #combine with non-target data from before
     x_all = np.concatenate((x_all, x_trains))
