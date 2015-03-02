@@ -1,61 +1,15 @@
 # author: mshadish
 ########################################
-# This script defines several functions used
-# to extract features from the driver folders
+# This script is the main function
+# to extract features from the kaggle drivers dataset
 ########################################
 ########################################
 # DEFINE THE PATH TO THE FOLDERS HERE
 path = 'drivers'
 ########################################
-
+# source the utility function file
+source('R_utils.R')
 options(warn = -1)
-
-calcAngle = function(x,y) {
-  # function to compute the true angle
-  if (x < 0) {
-    atan(y/x) + pi
-  }
-  else if (x == 0 && y == 0) {
-    NaN
-  }
-  else {
-    atan(y/x)
-  }
-}
-
-computeTurn = function(cur_angle, prev_angle, standstill = FALSE) {
-  # function to compute the turn between two trajectory angles
-  # check for na's
-  if (is.na(cur_angle)) {
-    # a) the car is no longer moving, or
-    # b) the car is now moving from a standstill
-    # in either case, we won't classify this as a turn
-    return(0.0)
-  }
-  else if (!standstill && is.na(prev_angle)) {
-    # this indicates that we will not treat moves from a standstill as a turn
-    return(0.0)
-  }
-  else if (standstill && is.na(prev_angle)) {
-    # this indicates that we will treat moves from a standstill as a turn
-    # this can help us compute overall trajectory
-    prev_angle = 0.0
-  }
-  
-  # run a while loop to minimize the turn angle
-  # to prevent the creation of a 340 degree right turn (which is a 20 deg left turn)
-  turn = cur_angle - prev_angle
-  while (abs(turn) > abs(turn - sign(turn) * 2 * pi)) {
-    turn = turn - sign(turn) * 2 * pi
-    # write an if for the rare case we have an exactly 180 degree turn
-    # which probably is incorrect, but we want to avoid the potential for an infinite loop
-    if (abs(turn) == pi) {
-      break
-    }
-  }
-  # return
-  turn
-}
 
 
 createIndividualDriverDf = function(folder_dir) {
@@ -105,6 +59,12 @@ createIndividualDriverDf = function(folder_dir) {
   med_acceleration = rep(NA, 200)
   avg_deceleration = rep(NA, 200)
   med_deceleration = rep(NA, 200)
+  
+  avg_right_turn_centripetal_accel = rep(NA, 200)
+  max_right_turn_centripetal_accel = rep(NA, 200)
+  avg_left_turn_centripetal_accel = rep(NA, 200)
+  max_left_turn_centripetal_accel = rep(NA, 200)
+  
 
   # set up files to loop through
   files = list.files(folder_dir, pattern = '*.csv')
@@ -120,18 +80,22 @@ createIndividualDriverDf = function(folder_dir) {
 
     # read in the data
     data = read.csv(paste(folder_dir, file, sep = '/'))
+    # pull out the x's and y's
+    x_s = data$x
+    y_s = data$y
     # difference it to obtain velocities
-    diffed_x = diff(data$x)
-    diffed_y = diff(data$y)
+    diffed_x = diff(x_s)
+    diffed_y = diff(y_s)
 
     ########################################################
     # FIRST, WE WILL CALCULATE THE TURNS
 
     # calculate the angles
     angles = mapply(FUN = calcAngle, diffed_x, diffed_y)
-    lag_angles = c(0, angles[-length(angles)])
+    lag_angles = angles[-length(angles)]
+    current_angles = angles[-1]
     # now calculate the turns
-    turn = mapply(FUN = computeTurn, angles, lag_angles)
+    turn = mapply(FUN = computeTurn, current_angles, lag_angles)
     # in this case, positive is left and negative is right
     # note that moving from a standstill does not constitute a turn
 
@@ -141,17 +105,17 @@ createIndividualDriverDf = function(folder_dir) {
     left_turn_frac = length(left_turns) / length(turn)
     avg_left_turn = mean(left_turns)
     med_left_turn = median(left_turns)
-    max_left_turn = pmax(left_turns)
+    max_left_turn = max(left_turns, na.rm = TRUE)
     sd_left_turn = sd(left_turns)
     right_turn_frac = length(right_turns) / length(turn)
     avg_right_turn = mean(right_turns)
     med_right_turn = median(right_turns)
-    max_right_turn = pmin(right_turns)
+    max_right_turn = min(right_turns, na.rm = TRUE)
     sd_right_turn = sd(right_turns)
 
     # while we're at it, let's compute the trajectory of the vehicle
-    trajectory = mapply(FUN = computeTurn, angles, lag_angles,
-                        rep(TRUE, length(angles)))
+    trajectory = mapply(FUN = computeTurn, current_angles, lag_angles,
+                        rep(TRUE, length(current_angles)))
     # again, positive is left and negative is right
     # TRAJECTORY FEATURES
     final_dir = sum(trajectory)
@@ -171,28 +135,76 @@ createIndividualDriverDf = function(folder_dir) {
     med_vel = median(vel)
     avg_vel_no_0 = mean(vel_no_0)
     med_vel_no_0 = median(vel_no_0)
-    max_vel = pmax(vel)
+    max_vel = max(vel, na.rm = TRUE)
     time_cruising = length(vel_no_0) / length(vel)
     distance = sum(vel)
-
+    
 
     ########################################################
-    # FINALLY, WE WILL CALCULATE THE ACCURACY METRICS
+    # CALCULATE THE ACCELERATION METRICS
     accel = diff(vel)
     accel_no_0 = subset(accel, accel != 0)
     accel_pos = subset(accel, accel > 0)
     accel_neg = subset(accel, accel < 0)
     # acceleration features
-    max_accel = pmax(accel)
-    max_brake = pmin(accel)
+    max_accel = max(accel, na.rm = TRUE)
+    max_brake = min(accel, na.rm = TRUE)
     time_accel = length(accel_pos) / length(accel)
     time_braking = length(accel_neg) / length(accel)
+    
     avg_accel = mean(accel_pos)
     med_accel = median(accel_pos)
+    # in case we have no acceleration (aka no movement)
+    if (length(accel_pos) == 0) {
+      avg_accel = 0
+      med_accel = 0
+    }
+    
+    # in case we happen to have no braking, we want to capture that
     avg_braking = mean(accel_neg)
     med_braking = median(accel_neg)
+    if (length(accel_neg) == 0) {
+      avg_braking = 0
+      med_braking = 0
+    }
+    
+    
+    ########################################################
+    # HERE WE WILL CALCULATE THE CENTRIPETAL ACCELERATION EXPERIENCED AT EACH POINT
+    # note that each computation will require a lag, current, and leading position
+    
+    # drop the last 2 vars in each list to get the lag position
+    lag_x = x_s[-c(length(x_s) - 1, length(x_s))]
+    lag_y = y_s[-c(length(y_s) - 1, length(y_s))]
+    # drop the first and last vars to get the current position
+    current_x = x_s[-c(1, length(x_s))]
+    current_y = y_s[-c(1, length(y_s))]
+    # drop the first 2 vars to get the lead position
+    lead_x = x_s[-c(1,2)]
+    lead_y = y_s[-c(1,2)]
 
+    # to compute the apex velocities, we average the velocity before and after
+    # each turn apex (a.k.a. our 'current' position)
+    apex_velocities = mapply(function(x,y) {(x+y)/2}, vel[-1], vel[-length(vel)])
+    # with our apex velocities, we can compute our centripetal accelerations
+    centripetal_accel = mapply(computeCentripetalAccel,
+                               lag_x, current_x, lead_x, lag_y, current_y, lead_y,
+                               apex_velocities)
+    # let's break this out by left and right turn
+    left_turn_indices = as.logical(turn > 0)
+    centripetal_accel_left = centripetal_accel[left_turn_indices]
+    right_turn_indices = as.logical(turn < 0)
+    centripetal_accel_right = centripetal_accel[right_turn_indices]
+    # in both cases, let's filter out 0's that may have slipped through the cracks
+    centripetal_accel_left = subset(centripetal_accel_left, centripetal_accel_left > 0)
+    centripetal_accel_right = subset(centripetal_accel_right, centripetal_accel_right > 0)
+    # now we must boil these down into single features
+    avg_centripetal_accel_left = mean(centripetal_accel_left, na.rm = TRUE)
+    max_centripetal_accel_left = max(centripetal_accel_left, na.rm = TRUE)
+    avg_centripetal_accel_right = mean(centripetal_accel_right, na.rm = TRUE)
+    max_centripetal_accel_right = max(centripetal_accel_right, na.rm = TRUE)
 
+    
     ########################################################
     # NOW ADD THE FEATURES TO THE LISTS
     # note: we use is.null() statements to catch null's
@@ -202,12 +214,12 @@ createIndividualDriverDf = function(folder_dir) {
     left_turn_fraction[counter] = left_turn_frac
     avg_left_turn_angle[counter] = avg_left_turn
     med_left_turn_angle[counter] = ifelse(!is.null(med_left_turn), med_left_turn, 0)
-    max_left_turn_angle[counter] = ifelse(!is.null(max_left_turn), max_left_turn, 0)
+    max_left_turn_angle[counter] = ifelse(!(max_left_turn == -Inf), max_left_turn, 0)
     sd_left_turn_angle[counter] = sd_left_turn
     right_turn_fraction[counter] = right_turn_frac
     avg_right_turn_angle[counter] = avg_right_turn
     med_right_turn_angle[counter] = ifelse(!is.null(med_right_turn), med_right_turn, 0)
-    max_right_turn_angle[counter] = ifelse(!is.null(max_right_turn), max_right_turn, 0)
+    max_right_turn_angle[counter] = ifelse(!(max_right_turn == -Inf), max_right_turn, 0)
     sd_right_turn_angle[counter] = sd_right_turn
 
     final_direction[counter] = final_dir
@@ -216,18 +228,27 @@ createIndividualDriverDf = function(folder_dir) {
     med_velocity[counter] = ifelse(!is.null(med_vel), med_vel, 0)
     avg_velocity_no_0[counter] = avg_vel_no_0
     med_velocity_no_0[counter] = ifelse(!is.null(med_vel_no_0), med_vel_no_0, 0)
-    max_velocity[counter] = ifelse(!is.null(max_vel), max_vel, 0)
+    max_velocity[counter] = ifelse(!(max_vel == -Inf), max_vel, 0)
     time_spent_cruising[counter] = time_cruising
     distance_traveled[counter] = distance
 
-    max_acceleration[counter] = ifelse(!is.null(max_accel), max_accel, 0)
-    max_deceleration[counter] = ifelse(!is.null(max_brake), max_brake, 0)
+    max_acceleration[counter] = ifelse(!(max_accel == -Inf), max_accel, 0)
+    max_deceleration[counter] = ifelse(!(max_brake == -Inf), max_brake, 0)
     time_spent_accelerating[counter] = time_accel
     time_spent_braking[counter] = time_braking
     avg_acceleration[counter] = avg_accel
     med_acceleration[counter] = ifelse(!is.null(med_accel), med_accel, 0)
     avg_deceleration[counter] = avg_braking
     med_deceleration[counter] = ifelse(!is.null(med_braking), med_braking, 0)
+    
+    avg_right_turn_centripetal_accel[counter] = ifelse(!is.na(avg_centripetal_accel_right),
+                                                       avg_centripetal_accel_right, 0)
+    max_right_turn_centripetal_accel[counter] = ifelse(!(max_centripetal_accel_right == -Inf),
+                                                       max_centripetal_accel_right, 0)
+    avg_left_turn_centripetal_accel[counter] = ifelse(!is.na(avg_centripetal_accel_left),
+                                                      avg_centripetal_accel_left, 0)
+    max_left_turn_centripetal_accel[counter] = ifelse(!(max_centripetal_accel_left == -Inf),
+                                                      max_centripetal_accel_left, 0)
 
     # increment the counter
     counter = counter + 1
@@ -243,7 +264,9 @@ createIndividualDriverDf = function(folder_dir) {
                          med_velocity_no_0, max_velocity, time_spent_cruising,
                          distance_traveled, max_acceleration, max_deceleration, time_spent_accelerating,
                          time_spent_braking, avg_acceleration, med_acceleration, avg_deceleration,
-                         med_deceleration)
+                         med_deceleration, avg_right_turn_centripetal_accel,
+                         max_right_turn_centripetal_accel, avg_left_turn_centripetal_accel,
+                         max_left_turn_centripetal_accel)
   # report completion
   print(paste('Completed folder', folder_dir, sep = ' '))
   # write to a csv
