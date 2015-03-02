@@ -105,8 +105,9 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     
     Then, uses the model to make probabilistic predictions on file_to_classify
     
-    Changes: Using the probabilistic predictions
-    relabels 1s to 0s based on threshhold
+    Changes: 
+    1. Upsamples target data to balance classes for model training
+    2. Uses probabilistic predictions relabels 1s to 0s based on threshhold
     """
     # first, grab the target data
     x_target, y_target, id_target = extractCSV(file_to_classify, target = 1)
@@ -115,7 +116,7 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     x_target = np.nan_to_num(x_target)
     y_target = np.nan_to_num(y_target)
     
-    # now grab the training/noise data
+    # copy target data
     x_all = copy.copy(x_target)
     y_all = copy.copy(y_target)
     
@@ -135,7 +136,7 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
             x_trains = np.concatenate((x_trains, x_current))
             y_trains = np.concatenate((y_trains, y_current))
         except:
-            x_trains, y_trains = x_current, y_current
+            x_trains, y_trains = copy.copy(x_current), copy.copy(y_current)
     # repeat for every filepath in our training files list
         
     #remove NAs from train data
@@ -151,15 +152,14 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     
     # now we are ready to provide class probabilities for our predictions
     predictions = in_model.predict_proba(x_target)
+    
     # note that we must extract the index of the class 1 probability
     prob_idx = np.where(in_model.classes_ == 1)[0][0]
     class_probs = [pred[prob_idx] for pred in predictions]
-    # and return a matrix of the id's and the corresponding probabilities
-    return_mat = [[id_target[idx], class_probs[idx]] \
-                    for idx in xrange(len(class_probs))]
     
-    #get new data labels based on threshold
-    new_labels = np.array([1 if float(r[1]) > threshold else 0 for r in return_mat])
+    #get new data labels by comparing threshold to class probs
+    new_labels = np.array([1 if p > threshold else 0 for p in class_probs])
+    
     #redo upsampling
     upsample_idx = np.random.choice(range(l), l*len(training_files))
     x_all = x_target[upsample_idx]
@@ -171,11 +171,12 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     
     #refit model
     in_model.fit(x_all, y_all_new)
-    # now we are ready to provide class probabilities for our predictions
+    # provide class probabilities for our predictions
     predictions = in_model.predict_proba(x_target)
-    # note that we must extract the index of the class 1 probability
+    # extract the index of the class 1 probability
     prob_idx = np.where(in_model.classes_ == 1)[0][0]
     class_probs = [pred[prob_idx] for pred in predictions]
+    
     # and return a matrix of the id's and the corresponding probabilities
     return_mat = [[id_target[idx], class_probs[idx]] \
                     for idx in xrange(len(class_probs))]
@@ -198,7 +199,7 @@ def parallelWrapper(target_file):
     # report
     print 'completed driver %s' % target_file
     # return the results of running our single driver through the model
-    return singleDriverTrainer(target_file, train_file_names, model)
+    return singleDriverTrainer2(target_file, train_file_names, model)
     
     
     
