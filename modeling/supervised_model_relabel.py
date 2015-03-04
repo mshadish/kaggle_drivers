@@ -39,7 +39,7 @@ all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 3
 # specify the number of features, for simplicity
-num_features = min(28, (train_file_count+1)*4)
+num_features = min(32, (train_file_count+1)*4)
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
@@ -218,5 +218,5 @@ if __name__ == '__main__':
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
-    df.to_csv('solutions.csv', index = False)
+    df.to_csv('solutions_relabel.csv', index = False)
     pass
