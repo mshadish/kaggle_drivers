@@ -37,7 +37,7 @@ from multiprocessing import Pool
 path = 'extracted'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-train_file_count = 1
+train_file_count = 3
 # specify the number of features, for simplicity
 num_features = min(28, (train_file_count+1)*4)
 # model to use
@@ -168,6 +168,7 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
         y_all_new = new_labels[upsample_idx]
     else:
         x_all = copy.copy(x_target)
+        y_all_new = new_labels
 
     
     #combine with non-target data from before
