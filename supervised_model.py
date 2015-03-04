@@ -35,9 +35,9 @@ from multiprocessing import Pool
 path = 'extracted'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-train_file_count = 1
+train_file_count = 10
 # specify the number of features, for simplicity
-num_features = min(28, (train_file_count+1)*4)
+num_features = min(8, (train_file_count+1)*4)
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
@@ -178,3 +178,12 @@ if __name__ == '__main__':
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
     df.to_csv('solutions.csv', index = False)
     pass
+
+'''
+Submissions and AUCs
+1. basic supervised_model, 1 file trained against 1 other file -- ~.69
+2. same model, new features added -- ~.7
+3. same model, 1 file trained against 4 other files, with upsampling -- ~.779
+4. 
+'''
+
