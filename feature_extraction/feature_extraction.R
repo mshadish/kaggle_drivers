@@ -219,7 +219,7 @@ createIndividualDriverDf = function(folder_dir) {
     right_turn_fraction[counter] = right_turn_frac
     avg_right_turn_angle[counter] = avg_right_turn
     med_right_turn_angle[counter] = ifelse(!is.null(med_right_turn), med_right_turn, 0)
-    max_right_turn_angle[counter] = ifelse(!(max_right_turn == -Inf), max_right_turn, 0)
+    max_right_turn_angle[counter] = ifelse(!(max_right_turn == Inf), max_right_turn, 0)
     sd_right_turn_angle[counter] = sd_right_turn
 
     final_direction[counter] = final_dir
