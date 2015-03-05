@@ -50,3 +50,18 @@ def bootstrap(input_x, input_y, sample_size):
     output_x = input_x[upsample_idx]
     output_y = input_y[upsample_idx]
     return output_x, output_y
+    
+    
+    
+def stackUpsample(input_x, input_y, multiple):
+    """
+    Stacks a sample on top of itself to return an upsampled version
+    of the original input data
+    
+    Returns:
+        1) output_x, the upsampled x points
+        2) output_y, the corresponding labels
+    """
+    output_x = np.asarray(input_x).tolist() * multiple
+    output_y = np.asarray(input_y).tolist() * multiple
+    return output_x, output_y

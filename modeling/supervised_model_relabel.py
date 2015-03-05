@@ -28,6 +28,7 @@ from sklearn.linear_model import LogisticRegression
 # utility imports
 from utils import genListOfCSVs
 from utils import bootstrap
+from utils import stackUpsample
 # import for parallelization
 from multiprocessing import Pool
 
@@ -37,13 +38,12 @@ from multiprocessing import Pool
 # path of the summary files
 path = '/users/mshadish/git_repos/kaggle_drivers/extracted'
 # path for output file name
-output_filename = 'solutions_4_relabeled.csv'
+output_filename = 'solutions_4files_20feats_relabeled_01thresh.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
 # specify the number of features, for simplicity
-#num_features = min(32, (train_file_count+1)*4)
-num_features = 10
+num_features = min(32, (train_file_count+1)*4)
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
@@ -97,7 +97,7 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
     
     
     
-def singleDriverTrainer2(file_to_classify, training_files, threshold = 0.2,
+def singleDriverTrainer2(file_to_classify, training_files, threshold = 0.1,
                         in_model = RandomForestClassifier()):
     """
     Takes in the file path of the driver file we want to classify (the target),
