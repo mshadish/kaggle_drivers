@@ -179,3 +179,12 @@ if __name__ == '__main__':
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
     df.to_csv(output_filename, index = False)
     pass
+
+"""
+Submissions and AUCs
+1. basic supervised_model, 1 file trained against 1 other file -- ~.69
+2. same model, new features added -- ~.7
+3. same model, 1 file trained against 4 other files, with upsampling -- ~.779
+4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
+5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
+"""

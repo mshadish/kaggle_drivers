@@ -27,6 +27,7 @@ from sklearn.ensemble import BaggingClassifier
 from sklearn.linear_model import LogisticRegression
 # utility imports
 from utils import genListOfCSVs
+from utils import bootstrap
 # import for parallelization
 from multiprocessing import Pool
 
@@ -34,12 +35,15 @@ from multiprocessing import Pool
 # let's define our global constants here
 # for ease of modification
 # path of the summary files
-path = 'extracted'
+path = '/users/mshadish/git_repos/kaggle_drivers/extracted'
+# path for output file name
+output_filename = 'solutions_4_relabeled.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-train_file_count = 3
+train_file_count = 4
 # specify the number of features, for simplicity
-num_features = min(32, (train_file_count+1)*4)
+#num_features = min(32, (train_file_count+1)*4)
+num_features = 10
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
@@ -93,7 +97,7 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
     
     
     
-def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
+def singleDriverTrainer2(file_to_classify, training_files, threshold = 0.2,
                         in_model = RandomForestClassifier()):
     """
     Takes in the file path of the driver file we want to classify (the target),
@@ -117,35 +121,39 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     y_target = np.nan_to_num(y_target)
     
     # copy target data
-    x_all = copy.copy(x_target)
-    y_all = copy.copy(y_target)
+    x_target_upsampled = copy.copy(x_target)
+    y_target_upsampled = copy.copy(y_target)
     
     #upsample target to balance classes
     if len(training_files) > 1:
-        l = len(x_target)
-        upsample_idx = np.random.choice(range(l), l*len(training_files))
-        x_all = x_target[upsample_idx]
-        y_all = y_all[upsample_idx]
+        num_samples = len(x_target_upsampled) * len(training_files)
+        x_target_upsampled, y_target_upsampled = bootstrap(x_target,
+                                                           y_target,
+                                                           num_samples)
+        
+    x_trains = None
+    y_trains = None
 
     # loop through all of our training/noise files, keep separate from target
     for filepath in training_files:
         # open the file
         x_current, y_current, ids = extractCSV(filepath, target = 0)
-        try:
-            # and add the contents to our training data
+        # and add the contents to our training data
+        if x_trains is None or y_trains is None:
+            x_trains = x_current
+            y_trains = y_current
+        else:
             x_trains = np.concatenate((x_trains, x_current))
             y_trains = np.concatenate((y_trains, y_current))
-        except:
-            x_trains, y_trains = copy.copy(x_current), copy.copy(y_current)
     # repeat for every filepath in our training files list
         
-    #remove NAs from train data
+    # remove NAs from train data
     x_trains = np.nan_to_num(x_trains)
     y_trains = np.nan_to_num(y_trains)
     
-    #now combine with target data
-    x_all = np.concatenate((x_all, x_trains))
-    y_all = np.concatenate((y_all, y_trains))
+    # now combine with target data
+    x_all = np.concatenate((x_target_upsampled, x_trains))
+    y_all = np.concatenate((y_target_upsampled, y_trains))
         
     # with all of our data, now we can train our model
     in_model.fit(x_all, y_all)
@@ -162,21 +170,21 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     
     #redo upsampling
     if len(training_files) > 1:
-        l = len(x_target)
-        upsample_idx = np.random.choice(range(l), l*len(training_files))
-        x_all = x_target[upsample_idx]
-        y_all_new = new_labels[upsample_idx]
+        num_samples = len(x_target) * len(training_files)
+        x_target_relabeled, y_target_relabeled = bootstrap(x_target,
+                                                           new_labels,
+                                                           num_samples)
     else:
-        x_all = copy.copy(x_target)
-        y_all_new = new_labels
+        x_target_relabeled = copy.copy(x_target)
+        y_target_relabeled = copy.copy(new_labels)
 
     
     #combine with non-target data from before
-    x_all = np.concatenate((x_all, x_trains))
-    y_all_new = np.concatenate((y_all_new, y_trains))
+    x_all_new = np.concatenate((x_target_relabeled, x_trains))
+    y_all_new = np.concatenate((y_target_relabeled, y_trains))
     
-    #refit model
-    in_model.fit(x_all, y_all_new)
+    # refit model
+    in_model.fit(x_all_new, y_all_new)
     # provide class probabilities for our predictions
     predictions = in_model.predict_proba(x_target)
     # extract the index of the class 1 probability
@@ -186,6 +194,8 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = .3,
     # and return a matrix of the id's and the corresponding probabilities
     return_mat = [[id_target[idx], class_probs[idx]] \
                     for idx in xrange(len(class_probs))]
+    # report
+    print 'completed driver %s' % file_to_classify
     
     return np.asarray(return_mat)
     
@@ -202,10 +212,8 @@ def parallelWrapper(target_file):
     # open the training files
     train_file_names = genTrainingSet(all_files, target_file,
                                       train_size = train_file_count)
-    # report
-    print 'completed driver %s' % target_file
     # return the results of running our single driver through the model
-    return singleDriverTrainer2(target_file, train_file_names, model)
+    return singleDriverTrainer2(target_file, train_file_names, in_model = model)
     
     
     
@@ -213,10 +221,10 @@ if __name__ == '__main__':
     # initialize the pool for parallelization
     p = Pool()
     # and parallelize prediction for each file
-    pred_arrays = p.map(parallelWrapper, random.sample(all_files, 10))
+    pred_arrays = p.map(parallelWrapper, all_files)
     # now reduce these into a single result
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
-    df.to_csv('solutions_relabel.csv', index = False)
+    df.to_csv(output_filename, index = False)
     pass
