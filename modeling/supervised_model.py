@@ -27,6 +27,7 @@ from sklearn.linear_model import LogisticRegression
 # utility imports
 from utils import genListOfCSVs
 from utils import bootstrap
+from utils import stackUpsample
 # import for parallelization
 from multiprocessing import Pool
 
@@ -34,9 +35,9 @@ from multiprocessing import Pool
 # let's define our global constants here
 # for ease of modification
 # path of the summary files
-path = 'extracted'
+path = '../extracted'
 # path for output solutions file
-output_filename = 'solutions_test.csv'
+output_filename = 'solutions_4files_20feats_stackupsample.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
@@ -172,7 +173,7 @@ if __name__ == '__main__':
     # initialize the pool for parallelization
     p = Pool()
     # and parallelize prediction for each file
-    pred_arrays = p.map(parallelWrapper, random.sample(all_files,10))
+    pred_arrays = p.map(parallelWrapper, all_files)
     # now reduce these into a single result
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
@@ -187,4 +188,5 @@ Submissions and AUCs
 3. same model, 1 file trained against 4 other files, with upsampling -- ~.779
 4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
 5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
+6. bagged logistic, 4 training files, 20 features, stacking upsampling -- 0.779
 """
