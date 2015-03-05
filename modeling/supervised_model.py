@@ -39,15 +39,9 @@ path = 'extracted'
 output_filename = 'solutions_test.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-<<<<<<< HEAD:supervised_model.py
-train_file_count = 10
-# specify the number of features, for simplicity
-num_features = min(8, (train_file_count+1)*4)
-=======
 train_file_count = 4
 # specify the number of features, for simplicity
 num_features = min(32, (train_file_count+1)*4)
->>>>>>> origin/master:modeling/supervised_model.py
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
@@ -183,19 +177,14 @@ if __name__ == '__main__':
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
-<<<<<<< HEAD:supervised_model.py
-    df.to_csv('solutions.csv', index = False)
+    df.to_csv(output_filename, index = False)
     pass
 
-'''
+"""
 Submissions and AUCs
 1. basic supervised_model, 1 file trained against 1 other file -- ~.69
 2. same model, new features added -- ~.7
 3. same model, 1 file trained against 4 other files, with upsampling -- ~.779
-4. 
-'''
-
-=======
-    df.to_csv(output_filename, index = False)
-    pass
->>>>>>> origin/master:modeling/supervised_model.py
+4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
+5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
+"""
