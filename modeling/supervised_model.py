@@ -116,10 +116,18 @@ def singleDriverTrainer(file_to_classify, training_files,
     # now grab the training/noise data
     x_all = copy.copy(x_target)
     y_all = copy.copy(y_target)
+    
+    #we're writing these too often
+    n = len(training_files)
+    l = len(x_target)
+    #stack target to balance classes test   
+#    if n > 1:
+#        stack_idx = range(l) * n
+#        x_all, y_all = x_all[stack_idx], y_all[stack_idx] 
 
-    # up-sample target to balance classes, if necessary
-    if len(training_files) > 1:
-        x_all, y_all = bootstrap(x_all,y_all,len(training_files)*len(x_target))
+    #upsample target to balance classes
+    if n > 1:
+        x_all, y_all = bootstrap(x_all,y_all,n*l)
 
     # loop through all of our training/noise files
     for filepath in training_files:
