@@ -16,24 +16,17 @@ from sklearn.cluster import MeanShift, estimate_bandwidth
 from sklearn.cluster import DBSCAN
 from sklearn import metrics
 from scipy.spatial import distance
-
-# from scipy.cluster.vq import vq
-# from sklearn.cluster import KMeans
-# from sklearn.metrics import silhouette_score
-from scipy.stats.stats import pearsonr
 from scipy.spatial.distance import pdist
 
 
 def extractCSV(file_path, id_column='id_list'):
     """
     Takes in a file path to a given CSV,
-    a target (aka what we want to label the data),
     and the name of the id column
 
     Returns:
         1) x = numpy array, with id's removed
-        2) y = list of either 0's or 1's
-        3) ids = list of id's corresponding to the observations in the x-matrix
+        2) ids = list of id's corresponding to the observations in the x-matrix
     """
     # read in the data
     data = pd.read_csv(file_path, header=0)
@@ -41,20 +34,11 @@ def extractCSV(file_path, id_column='id_list'):
     # print data.columns
     # remove the id column
     ids = data.pop(id_column).tolist()
-    # print data.columns.values
+
     # create the x-matrix
     x = data.as_matrix()
-    # print x.columns
-    corr = []
-    for i in range(len(x[0])):
-        for j in range(len(x[0])):
-            if i < j:
-                p = pearsonr(x[:, i], x[:, j])[0]
-                if p > .7 and p < 1:
-                    corr.append([i, j])
-    # print np.corrcoef(x[:, 0],x[:, 1])
 
-    return x, ids, corr, data.columns.values
+    return x, ids
 
 
 def mean_shift_clustering(x):
@@ -90,7 +74,7 @@ def mean_shift_clustering(x):
     return
 
 
-def db_scan_clustering(x):
+def db_scan_clustering2(x):
     D = distance.squareform(distance.pdist(x))
     S = 1 - (D / np.max(D))
     db = DBSCAN().fit(S)
@@ -120,13 +104,9 @@ def db_scan_clustering(x):
     return
 
 
-def db_scan_clustering_2(x, max_dist, samples):
+def db_scan_clustering(x, max_dist, samples):
     D = distance.squareform(pdist(x))
     S = 1 - (D / np.max(D))
-    print
-    # print pdist(S)
-    dist = distance.squareform(pdist(S))
-    # print dist.shape
     db = DBSCAN(eps=max_dist, min_samples=samples).fit(S)
     labels = db.labels_
     print Counter(labels)
@@ -180,24 +160,18 @@ def hier_clustering(x):
 
 if __name__ == '__main__':
 
-    all_files = genListOfCSVs('extracted')
+    all_files = genListOfCSVs('../extracted')
     corrrr = Counter()
     for file in all_files:
         print file
-        x_target, id_target, correlations, names = extractCSV(file)
-        for i in correlations:
-            corrrr[names[i[0]] + ', ' + names[i[1]]] += 1
-
+        x_target, id_target = extractCSV(file)
         x_target = np.nan_to_num(x_target)
         # now grab the training/noise data
         x_all = copy.copy(x_target)
 
         # mean_shift_clustering(x_all)
         # hier_clustering(x_all)
-        # db_scan_clustering(x_all)
-        # db_scan_clustering_2(x_all, 3, 101)
-    print corrrr
-    for cor in corrrr:
-        print cor, corrrr[cor]
+        # db_scan_clustering2(x_all)
+        db_scan_clustering(x_all, 2.75, 101)
 
 
