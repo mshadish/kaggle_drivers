@@ -67,9 +67,6 @@ if __name__ == '__main__':
             correlations[names[i[0]] + ', ' + names[i[1]]] += 1
 
     ordered_corr = correlations.most_common()
-    print ordered_corr
-    for cor in ordered_corr:
-        print cor[0], cor[1]
 
     header = ['variables', 'files_correlated']
     writer = csv.writer(open('correlation.csv', 'wb'))
