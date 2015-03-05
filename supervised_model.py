@@ -5,8 +5,7 @@ The general idea is to build a Random Forest to classify drivers
 as to whether or not they belong in a given folder
 1) Take all of the files in a given folder, label them as class 1
 2) Take files from (5) other folders, label them as class 0
-    2a) (optional) up-sample our class 1 to match the number of class 0's
-3) Train a model on this pseudo-labeled data
+3) Train a random forest on this pseudo-labeled data
 4) Predict on the files from the given folder in Step 1
     - Use the assigned probabilities to say, with some probability,
     whether or not that driving record belongs in the given folder
@@ -26,7 +25,6 @@ from sklearn.ensemble import BaggingClassifier
 from sklearn.linear_model import LogisticRegression
 # utility imports
 from utils import genListOfCSVs
-from utils import bootstrap
 # import for parallelization
 from multiprocessing import Pool
 
@@ -35,24 +33,17 @@ from multiprocessing import Pool
 # for ease of modification
 # path of the summary files
 path = 'extracted'
-# path for output solutions file
-output_filename = 'solutions_test.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-<<<<<<< HEAD:supervised_model.py
 train_file_count = 10
 # specify the number of features, for simplicity
 num_features = min(8, (train_file_count+1)*4)
-=======
-train_file_count = 4
-# specify the number of features, for simplicity
-num_features = min(32, (train_file_count+1)*4)
->>>>>>> origin/master:modeling/supervised_model.py
 # model to use
 model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
                           max_features = num_features)
-                          
-                          
+
+
+
 def extractCSV(file_path, target, id_column = 'id_list'):
     """
     Takes in a file path to a given CSV,
@@ -122,9 +113,12 @@ def singleDriverTrainer(file_to_classify, training_files,
     x_all = copy.copy(x_target)
     y_all = copy.copy(y_target)
 
-    # up-sample target to balance classes, if necessary
+    #upsample target to balance classes
     if len(training_files) > 1:
-        x_all, y_all = bootstrap(x_all,y_all,len(training_files)*len(x_target))
+        l = len(x_target)
+        upsample_idx = np.random.choice(range(l), l*len(training_files))
+        x_all = x_all[upsample_idx]
+        y_all = y_all[upsample_idx]
 
     # loop through all of our training/noise files
     for filepath in training_files:
@@ -150,11 +144,8 @@ def singleDriverTrainer(file_to_classify, training_files,
     # and return a matrix of the id's and the corresponding probabilities
     return_mat = [[id_target[idx], class_probs[idx]] \
                     for idx in xrange(len(class_probs))]
-                        
-    # report our progress before returning
-    print 'completed driver %s' % file_to_classify
-    return np.asarray(return_mat)
 
+    return np.asarray(return_mat)
 
 
 def parallelWrapper(target_file):
@@ -169,6 +160,8 @@ def parallelWrapper(target_file):
     # open the training files
     train_file_names = genTrainingSet(all_files, target_file,
                                       train_size = train_file_count)
+    # report
+    print 'completed driver %s' % target_file
     # return the results of running our single driver through the model
     return singleDriverTrainer(target_file, train_file_names, model)
 
@@ -178,12 +171,11 @@ if __name__ == '__main__':
     # initialize the pool for parallelization
     p = Pool()
     # and parallelize prediction for each file
-    pred_arrays = p.map(parallelWrapper, random.sample(all_files,10))
+    pred_arrays = p.map(parallelWrapper, random.sample(all_files, 10))
     # now reduce these into a single result
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
-<<<<<<< HEAD:supervised_model.py
     df.to_csv('solutions.csv', index = False)
     pass
 
@@ -195,7 +187,3 @@ Submissions and AUCs
 4. 
 '''
 
-=======
-    df.to_csv(output_filename, index = False)
-    pass
->>>>>>> origin/master:modeling/supervised_model.py
