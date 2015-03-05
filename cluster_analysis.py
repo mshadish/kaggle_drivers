@@ -7,6 +7,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
+from collections import Counter
+
 from utils import genListOfCSVs
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.neighbors import kneighbors_graph
@@ -18,6 +20,8 @@ from scipy.spatial import distance
 # from scipy.cluster.vq import vq
 # from sklearn.cluster import KMeans
 # from sklearn.metrics import silhouette_score
+from scipy.stats.stats import pearsonr
+from scipy.spatial.distance import pdist
 
 
 def extractCSV(file_path, id_column='id_list'):
@@ -33,13 +37,24 @@ def extractCSV(file_path, id_column='id_list'):
     """
     # read in the data
     data = pd.read_csv(file_path, header=0)
-    # print data.columns.values
 
+    # print data.columns
     # remove the id column
     ids = data.pop(id_column).tolist()
+    # print data.columns.values
     # create the x-matrix
     x = data.as_matrix()
-    return x, ids
+    # print x.columns
+    corr = []
+    for i in range(len(x[0])):
+        for j in range(len(x[0])):
+            if i < j:
+                p = pearsonr(x[:, i], x[:, j])[0]
+                if p > .7 and p < 1:
+                    corr.append([i, j])
+    # print np.corrcoef(x[:, 0],x[:, 1])
+
+    return x, ids, corr, data.columns.values
 
 
 def mean_shift_clustering(x):
@@ -106,11 +121,17 @@ def db_scan_clustering(x):
 
 
 def db_scan_clustering_2(x, max_dist, samples):
-    D = distance.squareform(distance.pdist(x))
+    D = distance.squareform(pdist(x))
     S = 1 - (D / np.max(D))
+    print
+    # print pdist(S)
+    dist = distance.squareform(pdist(S))
+    # print dist.shape
     db = DBSCAN(eps=max_dist, min_samples=samples).fit(S)
     labels = db.labels_
-    # Number of clusters in labels, ignoring noise if present.
+    print Counter(labels)
+
+    # Number of clusters in labels, ignoring noise if present (noise is labeled as -1).
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
     # Plot result
     colors = ([ ([0.4, 1, 0.4], [1, 0.4, 0.4], [0.4, 0.4, 1],
@@ -118,9 +139,12 @@ def db_scan_clustering_2(x, max_dist, samples):
                  [1, 1, 1])[i] for i in labels])
 
     plt.scatter(x[:, 28], x[:, 30], c=colors)
-    plt.title('DBSCAN, Estimated number of clusters: %d\nSilhouette Coefficient: %0.3f' %
-             (n_clusters_, metrics.silhouette_score(D, labels, metric='precomputed')))
-    plt.show()
+    try:
+        plt.title('DBSCAN, Estimated number of clusters: %d\nSilhouette Coefficient: %0.3f' %
+                 (n_clusters_, metrics.silhouette_score(D, labels, metric='precomputed')))
+    except:
+        print '------------------error------------------'
+    # plt.show()
     return
 
 
@@ -157,10 +181,13 @@ def hier_clustering(x):
 if __name__ == '__main__':
 
     all_files = genListOfCSVs('extracted')
-
+    corrrr = Counter()
     for file in all_files:
         print file
-        x_target, id_target = extractCSV(file)
+        x_target, id_target, correlations, names = extractCSV(file)
+        for i in correlations:
+            corrrr[names[i[0]] + ', ' + names[i[1]]] += 1
+
         x_target = np.nan_to_num(x_target)
         # now grab the training/noise data
         x_all = copy.copy(x_target)
@@ -168,4 +195,9 @@ if __name__ == '__main__':
         # mean_shift_clustering(x_all)
         # hier_clustering(x_all)
         # db_scan_clustering(x_all)
-        db_scan_clustering_2(x_all, 0.5, 50)
+        # db_scan_clustering_2(x_all, 3, 101)
+    print corrrr
+    for cor in corrrr:
+        print cor, corrrr[cor]
+
+
