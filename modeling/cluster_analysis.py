@@ -30,7 +30,11 @@ def extractCSV(file_path, id_column='id_list'):
     """
     # read in the data
     data = pd.read_csv(file_path, header=0)
-
+    data.drop(labels=['avg_velocity_no_0', 'avg_deceleration', 'right_turns_taken', 'avg_velocity',
+              'distance_traveled', 'max_acceleration', 'max_deceleration', 'med_velocity_no_0',
+              'time_spent_cruising', 'time_spent_braking', 'time_spent_accelerating',
+              'avg_right_turn_angle', 'avg_left_turn_angle', 'med_acceleration',
+              'left_turn_fraction', 'sd_left_turn_angle', 'med_right_turn_angle'], axis=1, inplace=True)
     # print data.columns
     # remove the id column
     ids = data.pop(id_column).tolist()
@@ -109,7 +113,6 @@ def db_scan_clustering(x, max_dist, samples):
     S = 1 - (D / np.max(D))
     db = DBSCAN(eps=max_dist, min_samples=samples).fit(S)
     labels = db.labels_
-    print Counter(labels)
 
     # Number of clusters in labels, ignoring noise if present (noise is labeled as -1).
     n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
@@ -119,11 +122,15 @@ def db_scan_clustering(x, max_dist, samples):
                  [1, 1, 1])[i] for i in labels])
 
     plt.scatter(x[:, 28], x[:, 30], c=colors)
+
     try:
-        plt.title('DBSCAN, Estimated number of clusters: %d\nSilhouette Coefficient: %0.3f' %
-                 (n_clusters_, metrics.silhouette_score(D, labels, metric='precomputed')))
+        sil_score = metrics.silhouette_score(D, labels, metric='precomputed')
+        plt.title('DBSCAN, Estimated number of clusters: %d\nNoise points: %d, Silhouette Coefficient: %0.3f' %
+                 (n_clusters_, Counter(labels)[-1], sil_score))
+        plt.show()
     except:
-        print '------------------error------------------'
+        print '---------------------error---------------------'
+
     # plt.show()
     return
 
@@ -172,6 +179,6 @@ if __name__ == '__main__':
         # mean_shift_clustering(x_all)
         # hier_clustering(x_all)
         # db_scan_clustering2(x_all)
-        db_scan_clustering(x_all, 2.75, 101)
+        db_scan_clustering(x_all, 3, 101)
 
 
