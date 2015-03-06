@@ -197,4 +197,7 @@ Submissions and AUCs
 4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
 5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
 6. bagged logistic, 4 training files, 20 features, stacking upsampling -- 0.779
+7. bagged logistic, 4 training files, 20 features, 0.2 threshold relabel -- 0.780
+8. bagged logistic, 9 training files, upsampling, 0.05 boost -- 0.795
+9. bagged logistic + rf, 4 training files, stack upsampling -- 0.810
 """
