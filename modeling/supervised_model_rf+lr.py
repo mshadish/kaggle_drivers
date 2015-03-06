@@ -42,12 +42,13 @@ all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
 # specify the number of features, for simplicity
-num_features = 12
-# model to use
-#model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
-#                          max_features = num_features)
-model = RandomForestClassifier(n_estimators = 200, max_features = 12,
-                               max_depth = 3)
+num_features1 = 12
+num_features2 = 12
+# models to use
+model1 = RandomForestClassifier(n_estimators = 200,
+                                max_features = num_features1, max_depth = 3)
+model2 = BaggingClassifier(LogisticRegression(), n_estimators = 50,
+                          max_features = num_features2)
                           
                           
 def extractCSV(file_path, target, id_column = 'id_list'):
@@ -98,7 +99,8 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
 
 
 def singleDriverTrainer(file_to_classify, training_files,
-                        in_model = RandomForestClassifier()):
+                        in_model1 = RandomForestClassifier(),
+                        in_model2 = LogisticRegression()):
     """
     Takes in the file path of the driver file we want to classify (the target),
     the paths of the files we will use as our 'noise' files,
@@ -144,26 +146,24 @@ def singleDriverTrainer(file_to_classify, training_files,
     x_all = np.nan_to_num(x_all)
     y_all = np.nan_to_num(y_all)
 
-    # with all of our data, now we can train our model
-    in_model.fit(x_all, y_all)
+    # with all of our data, now we can train model 1
+    in_model1.fit(x_all, y_all)
 
     # now we are ready to provide class probabilities for our predictions
-    predictions = in_model.predict_proba(x_target)
+    predictions = in_model1.predict_proba(x_target)
     # note that we must extract the index of the class 1 probability
-    prob_idx = np.where(in_model.classes_ == 1)[0][0]
-    rf_class_probs = [pred[prob_idx] for pred in predictions]
+    prob_idx = np.where(in_model1.classes_ == 1)[0][0]
+    class_probs1 = [pred[prob_idx] for pred in predictions]
     
-    #logistic regression initialize, fit, predict
-    logreg = BaggingClassifier(LogisticRegression(), n_estimators = 50,
-                         max_features = num_features)
-    logreg.fit(x_all, y_all)
-    lr_predictions = logreg.predict_proba(x_target)
+    #exactsame fit, predict for model 2
+    in_model2.fit(x_all, y_all)
+    predictions2 = in_model2.predict_proba(x_target)
     # same stuff to get probs
-    lr_prob_idx = np.where(in_model.classes_ == 1)[0][0]
-    lr_class_probs = [pred[lr_prob_idx] for pred in lr_predictions]
+    prob_idx2 = np.where(in_model2.classes_ == 1)[0][0]
+    class_probs2 = [pred[prob_idx2] for pred in predictions2]
     
     #combine probabilities - equal weighting
-    class_probs = np.add(rf_class_probs, lr_class_probs)/2
+    class_probs = np.add(class_probs1, class_probs2)/2
     
     # and return a matrix of the id's and the corresponding probabilities
     return_mat = [[id_target[idx], class_probs[idx]] \
@@ -188,7 +188,7 @@ def parallelWrapper(target_file):
     train_file_names = genTrainingSet(all_files, target_file,
                                       train_size = train_file_count)
     # return the results of running our single driver through the model
-    return singleDriverTrainer(target_file, train_file_names, model)
+    return singleDriverTrainer(target_file, train_file_names, model1, model2)
 
     
 
