@@ -14,6 +14,7 @@ Utility functions built for generalizability
 # imports
 import os
 import re
+import pandas as pd
 import numpy as np
 
 
@@ -65,3 +66,16 @@ def stackUpsample(input_x, input_y, multiple):
     output_x = np.asarray(input_x).tolist() * multiple
     output_y = np.asarray(input_y).tolist() * multiple
     return output_x, output_y
+
+
+def edit_probs(file_name, low, high):
+    data = np.asarray(pd.read_csv(file_name+'.csv', header=0))
+
+    target = [0.0 if data[i, 1] <= low else data[i, 1] for i in range(len(data[:, 1]))]
+    target = np.asarray([1.0 if target[i] >= high else target[i] for i in range(len(target))])
+    edited = np.vstack((data[:, 0], target))
+
+    df = pd.DataFrame(edited.transpose(), columns=['driver_trip', 'prob'])
+    df.to_csv(file_name+'_edited.csv', index=False)
+
+    return
