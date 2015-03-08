@@ -37,13 +37,13 @@ from multiprocessing import Pool
 # path of the summary files
 path = 'extracted'
 # path for output solutions file
-output_filename = 'solutions_4files_RFandBagLR_stackupsample.csv'
+output_filename = 'solutions_4files_RF_75pct_BagLR_25pct_20featLR.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
 # specify the number of features, for simplicity
 num_features1 = 12
-num_features2 = 12
+num_features2 = 20
 # models to use
 model1 = RandomForestClassifier(n_estimators = 200,
                                 max_features = num_features1, max_depth = 3)
@@ -100,7 +100,8 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
 
 def singleDriverTrainer(file_to_classify, training_files,
                         in_model1 = RandomForestClassifier(),
-                        in_model2 = LogisticRegression()):
+                        in_model2 = LogisticRegression(),
+                        weight_1 = .75):
     """
     Takes in the file path of the driver file we want to classify (the target),
     the paths of the files we will use as our 'noise' files,
@@ -153,17 +154,18 @@ def singleDriverTrainer(file_to_classify, training_files,
     predictions = in_model1.predict_proba(x_target)
     # note that we must extract the index of the class 1 probability
     prob_idx = np.where(in_model1.classes_ == 1)[0][0]
-    class_probs1 = [pred[prob_idx] for pred in predictions]
+    class_probs1 = [pred[prob_idx]*weight_1 for pred in predictions]
     
     #exactsame fit, predict for model 2
     in_model2.fit(x_all, y_all)
     predictions2 = in_model2.predict_proba(x_target)
     # same stuff to get probs
     prob_idx2 = np.where(in_model2.classes_ == 1)[0][0]
-    class_probs2 = [pred[prob_idx2] for pred in predictions2]
+    weight_2 = 1-weight_1
+    class_probs2 = [pred[prob_idx2]*weight_2 for pred in predictions2]
     
     #combine probabilities - equal weighting
-    class_probs = np.add(class_probs1, class_probs2)/2
+    class_probs = np.add(class_probs1, class_probs2)
     
     # and return a matrix of the id's and the corresponding probabilities
     return_mat = [[id_target[idx], class_probs[idx]] \
