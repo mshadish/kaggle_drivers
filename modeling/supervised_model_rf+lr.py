@@ -26,8 +26,6 @@ from sklearn.ensemble import BaggingClassifier
 from sklearn.linear_model import LogisticRegression
 # utility imports
 from utils import genListOfCSVs
-from utils import bootstrap
-from utils import stackUpsample
 # import for parallelization
 from multiprocessing import Pool
 
@@ -35,12 +33,13 @@ from multiprocessing import Pool
 # let's define our global constants here
 # for ease of modification
 # path of the summary files
-path = 'extracted'
+path = '../extracted'
 # path for output solutions file
 output_filename = 'solutions_4files_RF_75pct_BagLR_25pct_20featLR.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
-train_file_count = 4
+train_file_count = 200
+num_samples_per_training_file = 10
 # specify the number of features, for simplicity
 num_features1 = 12
 num_features2 = 20
@@ -51,7 +50,7 @@ model2 = BaggingClassifier(LogisticRegression(), n_estimators = 50,
                           max_features = num_features2)
                           
                           
-def extractCSV(file_path, target, id_column = 'id_list'):
+def extractCSV(file_path, target, id_column = 'id_list', file_subset = None):
     """
     Takes in a file path to a given CSV,
     a target (aka what we want to label the data),
@@ -65,13 +64,26 @@ def extractCSV(file_path, target, id_column = 'id_list'):
     # read in the data
     data = pd.read_csv(file_path, header = 0)
     # remove the id column
-    ids = data.pop(id_column).tolist()
+    ids = data.pop(id_column)
     # create the x-matrix
     x = data.as_matrix()
     # and create the corresponding y target values
     y = np.asarray([target] * len(x))
+    
+    # if our file subset variable is not None, then we will take a random
+    # subset of the x
+    if file_subset is not None:
+        # create some random indices
+        random_indices = random.sample(range(len(x)), file_subset)
+        # sample x
+        x = x[random_indices]
+        # and grab the corresponding id's
+        ids = ids[random_indices]
+        # cut down y to match the length of x
+        y = y[:file_subset]
+        
     # now we can return
-    return x, y, ids
+    return x, y, ids.tolist()
 
 
 
@@ -101,7 +113,8 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
 def singleDriverTrainer(file_to_classify, training_files,
                         in_model1 = RandomForestClassifier(),
                         in_model2 = LogisticRegression(),
-                        weight_1 = .75):
+                        weight_1 = .75,
+                        file_subset_size = 200):
     """
     Takes in the file path of the driver file we want to classify (the target),
     the paths of the files we will use as our 'noise' files,
@@ -123,12 +136,12 @@ def singleDriverTrainer(file_to_classify, training_files,
     y_all = copy.copy(y_target)
     
     #we're writing these too often
-    n = len(training_files)
+    n = int(round(len(training_files) * file_subset_size / 200.0))
     l = len(x_target)
     #stack target to balance classes test   
     if n > 1:
         stack_idx = range(l) * n
-        x_all, y_all = x_all[stack_idx], y_all[stack_idx] 
+        x_all, y_all = x_all[stack_idx], y_all[stack_idx]
 
     #upsample target to balance classes
 #    if n > 1:
@@ -137,7 +150,7 @@ def singleDriverTrainer(file_to_classify, training_files,
     # loop through all of our training/noise files
     for filepath in training_files:
         # open the file
-        x_current, y_current, ids = extractCSV(filepath, target = 0)
+        x_current, y_current, ids = extractCSV(filepath, target = 0, file_subset = file_subset_size)
         # and add the contents to our training data
         x_all = np.concatenate((x_all, x_current))
         y_all = np.concatenate((y_all, y_current))
@@ -190,7 +203,8 @@ def parallelWrapper(target_file):
     train_file_names = genTrainingSet(all_files, target_file,
                                       train_size = train_file_count)
     # return the results of running our single driver through the model
-    return singleDriverTrainer(target_file, train_file_names, model1, model2)
+    return singleDriverTrainer(target_file, train_file_names, model1, model2,
+                               file_subset_size = num_samples_per_training_file)
 
     
 
@@ -198,7 +212,7 @@ if __name__ == '__main__':
     # initialize the pool for parallelization
     p = Pool()
     # and parallelize prediction for each file
-    pred_arrays = p.map(parallelWrapper, all_files)
+    pred_arrays = p.map(parallelWrapper, random.sample(all_files,4))
     # now reduce these into a single result
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
     # and write to a csv
