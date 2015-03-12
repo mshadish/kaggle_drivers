@@ -37,7 +37,7 @@ from multiprocessing import Pool
 # path of the summary files
 path = 'extracted'
 # path for output solutions file
-output_filename = 'solutions_4files_RF_75pct_BagLR_25pct_20featLR.csv'
+output_filename = 'solutions_4files_RF_79pct_BagLR_21pct_20featLR.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
@@ -101,7 +101,7 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
 def singleDriverTrainer(file_to_classify, training_files,
                         in_model1 = RandomForestClassifier(),
                         in_model2 = LogisticRegression(),
-                        weight_1 = .75):
+                        weight_1 = .7875):
     """
     Takes in the file path of the driver file we want to classify (the target),
     the paths of the files we will use as our 'noise' files,
@@ -214,4 +214,9 @@ Submissions and AUCs
 4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
 5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
 6. bagged logistic, 4 training files, 20 features, stacking upsampling -- 0.779
+to try: 10% LR, 90% RF
+    tol = .01
+    c = .1 LR
+    c = 100 LR
 """
+

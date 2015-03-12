@@ -123,13 +123,11 @@ def singleDriverTrainer2(file_to_classify, training_files, threshold = 0.1,
     # copy target data
     x_target_upsampled = copy.copy(x_target)
     y_target_upsampled = copy.copy(y_target)
-    
-    #upsample target to balance classes
-    if len(training_files) > 1:
-        num_samples = len(x_target_upsampled) * len(training_files)
-        x_target_upsampled, y_target_upsampled = bootstrap(x_target,
-                                                           y_target,
-                                                           num_samples)
+                                                           
+    #stack target to balance classes test   
+    if n > 1:
+        stack_idx = range(l) * n
+        x_all, y_all = x_all[stack_idx], y_all[stack_idx] 
         
     x_trains = None
     y_trains = None

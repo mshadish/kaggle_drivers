@@ -100,8 +100,8 @@ createIndividualDriverDf = function(folder_dir) {
     # note that moving from a standstill does not constitute a turn
 
     # TURNING FEATURES
-    left_turns = subset(turn, turn > 0)
-    right_turns = subset(turn, turn < 0)
+    left_turns = subset(turn, turn > 0 & turn < (pi-.1))
+    right_turns = subset(turn, turn < 0 & turn > (-pi+.1))
     left_turn_frac = length(left_turns) / length(turn)
     avg_left_turn = mean(left_turns)
     med_left_turn = median(left_turns)
@@ -129,6 +129,7 @@ createIndividualDriverDf = function(folder_dir) {
     ########################################################
     # NEXT, WE WILL CALCULATE THE VELOCITY METRICS
     vel = sqrt(diffed_x^2 + diffed_y^2)
+    vel = subset(vel, vel < 100)
     vel_no_0 = subset(vel, vel > 0)
     # velocity features
     avg_vel = mean(vel)
@@ -144,8 +145,8 @@ createIndividualDriverDf = function(folder_dir) {
     # CALCULATE THE ACCELERATION METRICS
     accel = diff(vel)
     accel_no_0 = subset(accel, accel != 0)
-    accel_pos = subset(accel, accel > 0)
-    accel_neg = subset(accel, accel < 0)
+    accel_pos = subset(accel, accel > 0 & accel < 20)
+    accel_neg = subset(accel, accel < 0 & accel > -20)
     # acceleration features
     max_accel = max(accel, na.rm = TRUE)
     max_brake = min(accel, na.rm = TRUE)
@@ -270,7 +271,7 @@ createIndividualDriverDf = function(folder_dir) {
   # report completion
   print(paste('Completed folder', folder_dir, sep = ' '))
   # write to a csv
-  write.table(return_df, file = paste(folder_dir, '_summary.csv', sep = ''),
+  write.table(return_df, file = paste0(folder_dir, '_summary.csv'),
               sep = ',', quote = FALSE, row.names = FALSE)
   # end of function
 }

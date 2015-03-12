@@ -35,16 +35,16 @@ from multiprocessing import Pool
 # let's define our global constants here
 # for ease of modification
 # path of the summary files
-path = '../extracted'
+path = 'extracted'
 # path for output solutions file
-output_filename = 'solutions_4files_20feats_stackupsample.csv'
+output_filename = 'solutions_4files_20feats_LR_tolEqualsPoint01.csv'
 all_files = genListOfCSVs(path)
 # number of training/noise files to use
 train_file_count = 4
 # specify the number of features, for simplicity
 num_features = min(32, (train_file_count+1)*4)
 # model to use
-model = BaggingClassifier(LogisticRegression(), n_estimators = 100,
+model = BaggingClassifier(LogisticRegression(tol = .01), n_estimators = 100,
                           max_features = num_features)
                           
                           
@@ -121,13 +121,13 @@ def singleDriverTrainer(file_to_classify, training_files,
     n = len(training_files)
     l = len(x_target)
     #stack target to balance classes test   
-#    if n > 1:
-#        stack_idx = range(l) * n
-#        x_all, y_all = x_all[stack_idx], y_all[stack_idx] 
+    if n > 1:
+        stack_idx = range(l) * n
+        x_all, y_all = x_all[stack_idx], y_all[stack_idx] 
 
     #upsample target to balance classes
-    if n > 1:
-        x_all, y_all = bootstrap(x_all,y_all,n*l)
+#    if n > 1:
+#        x_all, y_all = bootstrap(x_all,y_all,n*l)
 
     # loop through all of our training/noise files
     for filepath in training_files:
