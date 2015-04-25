@@ -10,6 +10,18 @@ Utility functions built for generalizability
 2. bootstrap(x, y, sample size)
     - bootstraps x and y to a specified sample size
     - returns bootstrapped x and y
+
+3. stackUpsample(x, y, multiple size)
+    - similar to our bootstrap function,
+    but instead will "bootstrap" by increasing the number of occurrences
+    of each data point by our given multiple
+
+4. edit_probs(name of submission file, lower threshold, upper threshold)
+    - reads in a given submission file
+    - pushes any probabilities below our lower threshold to 0
+    and any probabilities above our upper threshold to 1
+    - ideally, this could increase our AUC if we are fairly confident
+    about the predictions outside of the lower and upper thresholds
 """
 # imports
 import os
@@ -31,6 +43,7 @@ def genListOfCSVs(path):
     # add the path back into the file path
     path = re.sub(r'\/$', '', path)
     csvs = ['/'.join([path, i]) for i in csvs]
+
     return csvs
     
     
@@ -50,6 +63,7 @@ def bootstrap(input_x, input_y, sample_size):
     # with these indices, extract the corresponding observations
     output_x = input_x[upsample_idx]
     output_y = input_y[upsample_idx]
+
     return output_x, output_y
     
     
@@ -66,6 +80,7 @@ def stackUpsample(input_x, input_y, multiple):
     output_x = np.asarray(input_x).tolist() * multiple
     output_y = np.asarray(input_y).tolist() * multiple
     return output_x, output_y
+
 
 
 def edit_probs(file_name, low, high):

@@ -1,13 +1,18 @@
 __author__ = 'mshadish'
 """
-Note that we can define the global constants below for ease of use
-The general idea is to build a Random Forest to classify drivers
-as to whether or not they belong in a given folder
-1) Take all of the files in a given folder, label them as class 1
-2) Take files from (5) other folders, label them as class 0
-    2a) (optional) up-sample our class 1 to match the number of class 0's
-3) Train a model on this pseudo-labeled data
-4) Predict on the files from the given folder in Step 1
+Note that we define the global constants below our imports for ease of use
+
+The idea is to build two models, a bagged logistic regression ensemble
+and a random forest, and use these models to make probabilistic predictions
+on each driving trip
+
+Methodology:
+1) Take all of the trips/files in a given folder, label them as class 1
+2) Take data from (5) other folders, label them as noise class 0
+3) Bootstrap data from our target class 1 to match the number of observations
+    from class 0
+4) Train a model on this pseudo-labeled data
+5) Predict on the files from the given folder in Step 1
     - Use the assigned probabilities to say, with some probability,
     whether or not that driving record belongs in the given folder
 
@@ -30,26 +35,33 @@ from utils import genListOfCSVs
 from multiprocessing import Pool
 
 
-# let's define our global constants here
-# for ease of modification
+# let's define our global constants here for ease of modification
+
 # path of the summary files
-path = '../extracted'
-# path for output solutions file
-output_filename = 'solutions_4files_RF_79pct_BagLR_21pct_20featLR.csv'
+path = '/users/mshadish/git_repos/kaggle_drivers/extracted'
+# use this path to create a list of all of our data files
 all_files = genListOfCSVs(path)
-# number of training/noise files to use
-train_file_count = 200
+
+# path for output solutions file
+output_filename = 'solutions.csv'
+
+# amount of training/noise data to use
+train_file_count = 280
 num_samples_per_training_file = 10
-# specify the number of features, for simplicity
-num_features1 = 12
-num_features2 = 20
+
+# specify the number of features bootstrapped by each ensemble
+num_features_model1 = 12
+num_features_model2 = 25
+
 # models to use
 model1 = RandomForestClassifier(n_estimators = 200,
-                                max_features = num_features1, max_depth = 3)
+                                max_features = num_features_model1,
+                                max_depth = 3)
 model2 = BaggingClassifier(LogisticRegression(), n_estimators = 50,
-                          max_features = num_features2)
-                          
-                          
+                           max_features = num_features_model2)
+
+
+
 def extractCSV(file_path, target, id_column = 'id_list', file_subset = None):
     """
     Takes in a file path to a given CSV,
@@ -70,8 +82,8 @@ def extractCSV(file_path, target, id_column = 'id_list', file_subset = None):
     # and create the corresponding y target values
     y = np.asarray([target] * len(x))
     
-    # if our file subset variable is not None, then we will take a random
-    # subset of the x
+    # if our file subset variable is not None, then we will take
+    # a random subset of the x
     if file_subset is not None:
         # create some random indices
         random_indices = random.sample(range(len(x)), file_subset)
@@ -110,20 +122,27 @@ def genTrainingSet(set_of_CSVs, file_to_classify, train_size = 5):
 
 
 
-def singleDriverTrainer(file_to_classify, training_files,
-                        in_model1 = RandomForestClassifier(),
-                        in_model2 = LogisticRegression(),
-                        weight_1 = .7875,
-                        file_subset_size = 200):
+def singleDriverTrainer(file_to_classify, training_files, in_model1, in_model2,
+                        weight_1 = 0.5, file_subset_size = 200):
     """
-    Takes in the file path of the driver file we want to classify (the target),
-    the paths of the files we will use as our 'noise' files,
-    and the input model
-
-    First, trains the input model on all of the files, with file_to_classify
-    as class 1 and training_files as class 0
-
-    Then, uses the model to make probabilistic predictions on file_to_classify
+    This function trains a model and generates predictions
+    for a SINGLE driver file.  This function is then mapped to all of our files
+    
+    First, trains the input models on all of the files, with file_to_classify
+    as class 1 and training_files as class 0.  Then, uses the model to make
+    probabilistic predictions on file_to_classify
+    
+    :param file_to_classify = name of driver file of interest
+    :param training_files = list of file names from which we will draw our
+                            noise data
+    :param in_model1 = first model that will be used
+    :param in_model2 = second model
+    :param weight_1 = weighting to be applied to the predictions of model 1
+    :param file_subset_size = specifies how many observations to pull out
+                                of each noise driver file
+                                
+    Returns:
+        A numpy array of [trip id, probability]
     """
     # first, grab the target data
     x_target, y_target, id_target = extractCSV(file_to_classify, target = 1)
@@ -135,22 +154,21 @@ def singleDriverTrainer(file_to_classify, training_files,
     x_all = copy.copy(x_target)
     y_all = copy.copy(y_target)
     
-    #we're writing these too often
+    # use stacking to up-sample our target data
+    # and balance it with our noise data
     n = int(round(len(training_files) * file_subset_size / 200.0))
     l = len(x_target)
-    #stack target to balance classes test   
+    # stack target to balance classes test   
     if n > 1:
         stack_idx = range(l) * n
         x_all, y_all = x_all[stack_idx], y_all[stack_idx]
 
-    #upsample target to balance classes
-#    if n > 1:
-#        x_all, y_all = bootstrap(x_all,y_all,n*l)
-
+    # now we must add the data from each noise file
     # loop through all of our training/noise files
     for filepath in training_files:
         # open the file
-        x_current, y_current, ids = extractCSV(filepath, target = 0, file_subset = file_subset_size)
+        x_current, y_current, ids = extractCSV(filepath, target = 0,
+                                               file_subset = file_subset_size)
         # and add the contents to our training data
         x_all = np.concatenate((x_all, x_current))
         y_all = np.concatenate((y_all, y_current))
@@ -160,24 +178,33 @@ def singleDriverTrainer(file_to_classify, training_files,
     x_all = np.nan_to_num(x_all)
     y_all = np.nan_to_num(y_all)
 
-    # with all of our data, now we can train model 1
-    in_model1.fit(x_all, y_all)
 
+    ###########
+    # MODEL 1 TRAINING
+    ###########
+    in_model1.fit(x_all, y_all)
     # now we are ready to provide class probabilities for our predictions
+    # on the target data
     predictions = in_model1.predict_proba(x_target)
     # note that we must extract the index of the class 1 probability
     prob_idx = np.where(in_model1.classes_ == 1)[0][0]
+    # apply the weighting for model 1 to each prediction
     class_probs1 = [pred[prob_idx]*weight_1 for pred in predictions]
     
-    #exactsame fit, predict for model 2
+    
+    ###########
+    # MODEL 2 TRAINING
+    ###########
     in_model2.fit(x_all, y_all)
+    # again, extract probabilistic predictions for the target data
     predictions2 = in_model2.predict_proba(x_target)
-    # same stuff to get probs
     prob_idx2 = np.where(in_model2.classes_ == 1)[0][0]
-    weight_2 = 1-weight_1
+    # apply the weighting for model 2 to each prediction
+    # note that our weighting for number 2 is (1 - weight[1])
+    weight_2 = 1 - weight_1
     class_probs2 = [pred[prob_idx2]*weight_2 for pred in predictions2]
     
-    #combine probabilities - equal weighting
+    # combine probabilities
     class_probs = np.add(class_probs1, class_probs2)
     
     # and return a matrix of the id's and the corresponding probabilities
@@ -199,38 +226,27 @@ def parallelWrapper(target_file):
     global model
     global all_files
     global train_file_count
+    
     # open the training files
     train_file_names = genTrainingSet(all_files, target_file,
                                       train_size = train_file_count)
+                                      
     # return the results of running our single driver through the model
     return singleDriverTrainer(target_file, train_file_names, model1, model2,
-                               file_subset_size = num_samples_per_training_file)
+                               weight_1 = 0.7875,
+                               file_subset_size=num_samples_per_training_file)
 
     
 
 if __name__ == '__main__':
     # initialize the pool for parallelization
     p = Pool()
-    # and parallelize prediction for each file
+    # and map our prediction function to the list of data files
     pred_arrays = p.map(parallelWrapper, random.sample(all_files,4))
+    
     # now reduce these into a single result
     predictions_combined = reduce(lambda a,b: np.vstack((a,b)), pred_arrays)
+    
     # and write to a csv
     df = pd.DataFrame(predictions_combined, columns = ['driver_trip', 'prob'])
     df.to_csv(output_filename, index = False)
-    pass
-
-"""
-Submissions and AUCs
-1. basic supervised_model, 1 file trained against 1 other file -- ~.69
-2. same model, new features added -- ~.7
-3. same model, 1 file trained against 4 other files, with upsampling -- ~.779
-4. same model, 1 file trained against 9 other files, with upsampling -- 0.795
-5. bagged logistic, 4 training files, 10 features, upsampling, relabeling -- 0.768
-6. bagged logistic, 4 training files, 20 features, stacking upsampling -- 0.779
-to try: 10% LR, 90% RF
-    tol = .01
-    c = .1 LR
-    c = 100 LR
-"""
-

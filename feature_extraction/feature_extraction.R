@@ -70,6 +70,8 @@ createIndividualDriverDf = function(folder_dir) {
   files = list.files(folder_dir, pattern = '*.csv')
 
   # now loop through all of the files
+  # using a counter to keep track of how many files we've processed
+  # in this folder
   counter = 1
   for (file in files) {
     
@@ -209,6 +211,7 @@ createIndividualDriverDf = function(folder_dir) {
     ########################################################
     # NOW ADD THE FEATURES TO THE LISTS
     # note: we use is.null() statements to catch null's
+    # filter out possible infinities
     # and replace them with 0's
     left_turns_taken[counter] = length(left_turns)
     right_turns_taken[counter] = length(right_turns)
@@ -253,7 +256,6 @@ createIndividualDriverDf = function(folder_dir) {
 
     # increment the counter
     counter = counter + 1
-    #print(paste('Completed', toString(counter), sep=' '))
   }
   # now that all of the vectors have been populated,
   # create the returning data frame
@@ -268,12 +270,12 @@ createIndividualDriverDf = function(folder_dir) {
                          med_deceleration, avg_right_turn_centripetal_accel,
                          max_right_turn_centripetal_accel, avg_left_turn_centripetal_accel,
                          max_left_turn_centripetal_accel)
-  # report completion
+  # report completion of our given driver
   print(paste('Completed folder', folder_dir, sep = ' '))
   # write to a csv
   write.table(return_df, file = paste0(folder_dir, '_summary.csv'),
               sep = ',', quote = FALSE, row.names = FALSE)
-  # end of function
+  # end of function for a single driver folder
 }
 
 
