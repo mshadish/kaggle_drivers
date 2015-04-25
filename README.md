@@ -19,6 +19,10 @@ Use this script to generate some basic histograms to visualize the distributions
   
 Modeling  
 =============  
+final_supervised_model.py  
+  
+Run this script from the command line, since it utilizes Python's multiprocessing for parallel computation.  
+  
 Our methodology is to use supervised modeling techniques in an unsupervised environment.  
   
 1) Select a driver and all 200 of the associated trips as our target class  
